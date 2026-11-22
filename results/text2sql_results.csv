@@ -1,0 +1,389 @@
+version,question,correct,why,sql,tokens,steps,seconds,bucket,adjusted_correct
+v0 baseline,How many claims are there in total?,True,match,SELECT COUNT(*) AS total_claims FROM claims,193,1,2.2,,True
+v0 baseline,How many policies are there in each state?,True,match,"SELECT state, COUNT(*) AS policy_count
+FROM policies
+GROUP BY state",200,1,1.0,,True
+v0 baseline,What is the average claim cost for injury claims?,True,match,"SELECT AVG(cost_usd) AS average_claim_cost
+FROM claims
+WHERE claim_type = 'injury'",207,1,1.2,,True
+v0 baseline,How many open claims are there?,False,no predicted row matches reference row [180],"SELECT COUNT(*) AS open_claims_count
+FROM claims
+WHERE status = 'open'",200,1,0.7,unreviewed,False
+v0 baseline,"What share of injury claims are litigated, as a percentage?",False,no predicted row matches reference row [32.6],"SELECT 
+    (SUM(CASE WHEN status = 'Litigated' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)) AS litigated_percentage
+FROM 
+    claims
+WHERE 
+    claim_type = 'Injury'",240,1,1.5,unreviewed,False
+v0 baseline,What is the total claim cost by product?,True,match,"SELECT p.product, SUM(c.cost_usd) AS total_claim_cost
+FROM claims c
+JOIN policies p ON c.policy_id = p.policy_id
+GROUP BY p.product",220,1,1.0,,True
+v0 baseline,What is the claim severity for each claim type?,True,match,"SELECT claim_type, AVG(cost_usd) AS claim_severity
+FROM claims
+GROUP BY claim_type",207,1,0.8,,True
+v0 baseline,Which state has the highest total claim cost?,True,match,"SELECT p.state, SUM(c.cost_usd) AS total_claim_cost
+FROM policies p
+JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.state
+ORDER BY total_claim_cost DESC
+LIMIT 1",231,1,1.2,,True
+v0 baseline,What is the loss ratio for each product?,False,"no predicted row matches reference row ['auto', 0.747]","SELECT 
+    p.product,
+    SUM(c.cost_usd) AS total_claims,
+    SUM(p.annual_premium) AS total_premiums,
+    CASE 
+        WHEN SUM(p.annual_premium) > 0 THEN SUM(c.cost_usd) / SUM(p.annual_premium)
+        ELSE 0
+    END AS loss_ratio
+FROM 
+    policies p
+LEFT JOIN 
+    claims c ON p.policy_id = c.policy_id
+GROUP BY 
+    p.product",285,1,2.2,unreviewed,False
+v0 baseline,How many policies have never had a claim?,True,match,"SELECT COUNT(*) AS policies_without_claims
+FROM policies
+WHERE policy_id NOT IN (SELECT DISTINCT policy_id FROM claims)",209,1,1.1,,True
+v0 baseline,What is the claim frequency for auto policies?,True,match,"SELECT COUNT(c.claim_id) * 1.0 / COUNT(DISTINCT p.policy_id) AS claim_frequency
+FROM policies p
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+WHERE p.product = 'auto'",232,1,1.4,,True
+v0 baseline,How many claims were reported each month in 2026?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, COUNT(*) AS claim_count
+FROM claims
+WHERE strftime('%Y', report_date) = '2026'
+GROUP BY month
+ORDER BY month",232,1,1.4,,True
+v0 baseline,Which adjuster handles the most open claims?,True,match,"SELECT a.name, COUNT(c.claim_id) AS open_claims_count
+FROM adjusters a
+JOIN claims c ON a.adjuster_id = c.adjuster_id
+WHERE c.status = 'open'
+GROUP BY a.adjuster_id
+ORDER BY open_claims_count DESC
+LIMIT 1",244,1,1.4,,True
+v0 baseline,What is the average cost of litigated versus non-litigated injury claims?,False,row count 0 vs 2,"SELECT 
+    CASE 
+        WHEN claim_type = 'litigated' THEN 'Litigated' 
+        ELSE 'Non-Litigated' 
+    END AS claim_category,
+    AVG(cost_usd) AS average_cost
+FROM claims
+WHERE claim_type IN ('litigated', 'non-litigated')
+GROUP BY claim_category",261,1,1.4,unreviewed,False
+v0 baseline,List the 3 most expensive fire claims with their state.,True,match,"SELECT c.claim_id, p.state, c.cost_usd
+FROM claims c
+JOIN policies p ON c.policy_id = p.policy_id
+WHERE c.claim_type = 'fire'
+ORDER BY c.cost_usd DESC
+LIMIT 3",236,1,1.4,,True
+v0 baseline,How many claims does each region's adjusters handle?,True,match,"SELECT a.region, COUNT(c.claim_id) AS claims_handled
+FROM adjusters a
+LEFT JOIN claims c ON a.adjuster_id = c.adjuster_id
+GROUP BY a.region",225,1,1.0,,True
+v0 baseline,What is the total premium of home policies in Florida?,False,no predicted row matches reference row [231675.88],"SELECT SUM(annual_premium) AS total_premium
+FROM policies
+WHERE product = 'home' AND state = 'Florida'",213,1,0.9,unreviewed,False
+v0 baseline,Which claim type has the highest litigation rate?,False,no predicted row matches reference row ['injury'],"SELECT claim_type, 
+       COUNT(CASE WHEN status = 'Litigated' THEN 1 END) * 1.0 / COUNT(*) AS litigation_rate
+FROM claims
+GROUP BY claim_type
+ORDER BY litigation_rate DESC
+LIMIT 1",236,1,1.4,unreviewed,False
+v0 baseline,How many policies have more than one claim?,False,row count 119 vs 1,"SELECT COUNT(DISTINCT policy_id) AS policy_count
+FROM claims
+GROUP BY policy_id
+HAVING COUNT(claim_id) > 1",215,1,0.9,unreviewed,False
+v0 baseline,What is the average claim cost handled by adjusters with more than 10 years of experience?,True,match,"SELECT AVG(cost_usd) AS average_claim_cost
+FROM claims
+WHERE adjuster_id IN (
+    SELECT adjuster_id
+    FROM adjusters
+    WHERE years_experience > 10
+)",235,1,1.2,,True
+v1 context,How many claims are there in total?,True,match,SELECT COUNT(*) FROM claims,525,1,1.5,,True
+v1 context,How many policies are there in each state?,True,match,"SELECT state, COUNT(*) AS policy_count FROM policies GROUP BY state",534,1,0.9,,True
+v1 context,What is the average claim cost for injury claims?,True,match,"SELECT AVG(c.cost_usd) AS average_claim_cost 
+FROM claims c 
+WHERE c.claim_type = 'injury'",546,1,1.0,,True
+v1 context,How many open claims are there?,True,match,"SELECT COUNT(*) FROM claims WHERE status IN ('open', 'reopened')",533,1,0.8,,True
+v1 context,"What share of injury claims are litigated, as a percentage?",True,match,"SELECT ROUND(100.0 * SUM(CASE WHEN c.attorney = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) AS litigated_share
+FROM claims c
+WHERE c.claim_type = 'injury'",574,1,1.3,,True
+v1 context,What is the total claim cost by product?,True,match,"SELECT p.product, SUM(c.cost_usd) AS total_claim_cost
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+GROUP BY p.product",556,1,1.6,,True
+v1 context,What is the claim severity for each claim type?,True,match,"SELECT c.claim_type, AVG(c.cost_usd) AS claim_severity
+FROM claims c
+GROUP BY c.claim_type",547,1,0.8,,True
+v1 context,Which state has the highest total claim cost?,True,match,"SELECT p.state, SUM(c.cost_usd) AS total_claim_cost
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+GROUP BY p.state 
+ORDER BY total_claim_cost DESC 
+LIMIT 1",567,1,1.3,,True
+v1 context,What is the loss ratio for each product?,False,"no predicted row matches reference row ['auto', 0.747]","SELECT p.product, 
+       SUM(c.cost_usd) / SUM(p.annual_premium) AS loss_ratio
+FROM policies p 
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.product",566,1,1.1,unreviewed,False
+v1 context,How many policies have never had a claim?,True,match,SELECT COUNT(*) FROM policies p WHERE NOT EXISTS (SELECT 1 FROM claims c WHERE c.policy_id = p.policy_id),545,1,1.0,,True
+v1 context,What is the claim frequency for auto policies?,False,no predicted row matches reference row [0.888],"SELECT COUNT(c.claim_id) * 1.0 / COUNT(DISTINCT p.policy_id) AS claim_frequency
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE p.product = 'auto'",567,1,1.1,unreviewed,False
+v1 context,How many claims were reported each month in 2026?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, COUNT(*) AS claim_count
+FROM claims
+GROUP BY month
+ORDER BY month",554,1,0.8,,True
+v1 context,Which adjuster handles the most open claims?,True,match,"SELECT a.name 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE c.status IN ('open', 'reopened') 
+GROUP BY a.name 
+ORDER BY COUNT(c.claim_id) DESC 
+LIMIT 1",573,1,1.1,,True
+v1 context,What is the average cost of litigated versus non-litigated injury claims?,False,row count 1 vs 2,"SELECT 
+    CASE WHEN c.attorney = 1 THEN 'Litigated' ELSE 'Non-Litigated' END AS claim_type,
+    AVG(c.cost_usd) AS average_cost
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE c.claim_type = 'injury'
+GROUP BY claim_type",597,1,1.4,unreviewed,False
+v1 context,List the 3 most expensive fire claims with their state.,True,match,"SELECT p.state, c.claim_id, c.cost_usd 
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE c.claim_type = 'fire' 
+ORDER BY c.cost_usd DESC 
+LIMIT 3",573,1,1.7,,True
+v1 context,How many claims does each region's adjusters handle?,True,match,"SELECT a.region, COUNT(c.claim_id) AS claims_handled
+FROM claims c
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id
+GROUP BY a.region",560,1,1.4,,True
+v1 context,What is the total premium of home policies in Florida?,True,match,SELECT SUM(annual_premium) FROM policies WHERE product = 'home' AND state = 'FL',543,1,0.8,,True
+v1 context,Which claim type has the highest litigation rate?,True,match,"SELECT c.claim_type, ROUND(100.0 * AVG(c.attorney), 1) AS litigation_rate
+FROM claims c
+GROUP BY c.claim_type
+ORDER BY litigation_rate DESC
+LIMIT 1",563,1,1.4,,True
+v1 context,How many policies have more than one claim?,False,row count 119 vs 1,"SELECT COUNT(DISTINCT p.policy_id) 
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+GROUP BY p.policy_id 
+HAVING COUNT(c.claim_id) > 1",563,1,0.9,unreviewed,False
+v1 context,What is the average claim cost handled by adjusters with more than 10 years of experience?,True,match,"SELECT AVG(c.cost_usd) 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE a.years_experience > 10",567,1,1.0,,True
+v2 agent,How many claims are there in total?,True,match,SELECT COUNT(*) FROM claims,1247,2,1.8,,True
+v2 agent,How many policies are there in each state?,True,match,"SELECT state, COUNT(*) as policy_count FROM policies GROUP BY state",1293,2,2.0,,True
+v2 agent,What is the average claim cost for injury claims?,True,match,SELECT AVG(c.cost_usd) AS average_claim_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE c.claim_type = 'injury',1345,2,2.5,,True
+v2 agent,How many open claims are there?,True,match,"SELECT COUNT(*) FROM claims WHERE status IN ('open', 'reopened')",1275,2,2.0,,True
+v2 agent,"What share of injury claims are litigated, as a percentage?",True,match,"SELECT ROUND(100.0 * SUM(CASE WHEN c.attorney = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) AS litigation_rate
+FROM claims c
+JOIN policies p ON c.policy_id = p.policy_id
+WHERE c.claim_type = 'injury'",1428,2,3.1,,True
+v2 agent,What is the total claim cost by product?,True,match,"SELECT p.product, SUM(c.cost_usd) AS total_claim_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY p.product",1345,2,2.7,,True
+v2 agent,What is the claim severity for each claim type?,True,match,"SELECT c.claim_type, AVG(c.cost_usd) AS average_severity FROM claims c GROUP BY c.claim_type",1372,2,2.2,,True
+v2 agent,Which state has the highest total claim cost?,True,match,"SELECT p.state, SUM(c.cost_usd) AS total_claim_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY p.state ORDER BY total_claim_cost DESC LIMIT 1",1364,2,2.8,,True
+v2 agent,What is the loss ratio for each product?,False,"no predicted row matches reference row ['auto', 0.747]","SELECT p.product, ROUND(SUM(c.cost_usd) / SUM(p.annual_premium) * 100, 1) AS loss_ratio FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY p.product",2442,3,4.0,unreviewed,False
+v2 agent,How many policies have never had a claim?,True,match,SELECT COUNT(*) FROM policies p WHERE p.policy_id NOT IN (SELECT DISTINCT c.policy_id FROM claims c),1300,2,3.4,,True
+v2 agent,What is the claim frequency for auto policies?,False,no predicted row matches reference row [0.888],SELECT COUNT(c.claim_id) * 1.0 / COUNT(DISTINCT p.policy_id) AS claim_frequency FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE p.product = 'auto',1373,2,2.4,unreviewed,False
+v2 agent,How many claims were reported each month in 2026?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, COUNT(*) AS claim_count FROM claims GROUP BY month ORDER BY month",1391,2,1.8,,True
+v2 agent,Which adjuster handles the most open claims?,True,match,"SELECT a.name, COUNT(c.claim_id) AS open_claim_count 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE c.status IN ('open', 'reopened') 
+GROUP BY a.name 
+ORDER BY open_claim_count DESC 
+LIMIT 1",1441,2,2.5,,True
+v2 agent,What is the average cost of litigated versus non-litigated injury claims?,False,"no predicted row matches reference row [0, 5027.88]","SELECT 'Litigated' AS claim_type, AVG(c.cost_usd) AS avg_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE c.claim_type = 'injury' AND c.attorney = 1 GROUP BY claim_type UNION ALL SELECT 'Non-Litigated' AS claim_type, AVG(c.cost_usd) AS avg_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE c.claim_type = 'injury' AND c.attorney = 0 GROUP BY claim_type",1629,2,4.6,scorer too strict,True
+v2 agent,List the 3 most expensive fire claims with their state.,True,match,"SELECT c.claim_id, c.cost_usd, p.state FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE c.claim_type = 'fire' ORDER BY c.cost_usd DESC LIMIT 3",1402,2,2.6,,True
+v2 agent,How many claims does each region's adjusters handle?,True,match,"SELECT a.region, COUNT(c.claim_id) AS claims_handled FROM adjusters a LEFT JOIN claims c ON a.adjuster_id = c.adjuster_id GROUP BY a.region",1360,2,2.3,,True
+v2 agent,What is the total premium of home policies in Florida?,True,match,SELECT SUM(annual_premium) FROM policies WHERE product = 'home' AND state = 'FL',1307,2,2.1,,True
+v2 agent,Which claim type has the highest litigation rate?,True,match,"SELECT claim_type, ROUND(100.0 * AVG(attorney), 1) AS litigation_rate FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY claim_type ORDER BY litigation_rate DESC LIMIT 1",1381,2,2.7,,True
+v2 agent,How many policies have more than one claim?,True,match,SELECT COUNT(*) FROM (SELECT c.policy_id FROM claims c GROUP BY c.policy_id HAVING COUNT(c.claim_id) > 1) AS subquery,2159,3,3.3,,True
+v2 agent,What is the average claim cost handled by adjusters with more than 10 years of experience?,True,match,SELECT AVG(c.cost_usd) AS average_claim_cost FROM claims c JOIN adjusters a ON c.adjuster_id = a.adjuster_id WHERE a.years_experience > 10,1372,2,2.4,,True
+v3 context + rules,How many claims are there in total?,True,match,SELECT COUNT(*) FROM claims,617,1,0.6,,True
+v3 context + rules,How many policies are there in each state?,True,match,"SELECT state, COUNT(*) FROM policies GROUP BY state",623,1,0.7,,True
+v3 context + rules,What is the average claim cost for injury claims?,True,match,"SELECT AVG(c.cost_usd) 
+FROM claims c 
+WHERE c.claim_type = 'injury'",634,1,0.8,,True
+v3 context + rules,How many open claims are there?,True,match,"SELECT COUNT(*) FROM claims WHERE status IN ('open', 'reopened')",625,1,1.0,,True
+v3 context + rules,"What share of injury claims are litigated, as a percentage?",True,match,"SELECT ROUND(100.0 * SUM(CASE WHEN c.attorney = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) AS litigated_share
+FROM claims c
+JOIN policies p ON c.policy_id = p.policy_id
+WHERE c.claim_type = 'injury'",678,1,1.3,,True
+v3 context + rules,What is the total claim cost by product?,True,match,"SELECT p.product, SUM(c.cost_usd) AS total_claim_cost
+FROM policies p
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.product",649,1,1.1,,True
+v3 context + rules,What is the claim severity for each claim type?,True,match,"SELECT c.claim_type, AVG(c.cost_usd) AS claim_severity 
+FROM claims c 
+GROUP BY c.claim_type",639,1,0.8,,True
+v3 context + rules,Which state has the highest total claim cost?,True,match,"SELECT p.state, SUM(c.cost_usd) AS total_claim_cost
+FROM policies p
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.state
+ORDER BY total_claim_cost DESC
+LIMIT 1",660,1,1.1,,True
+v3 context + rules,What is the loss ratio for each product?,False,"no predicted row matches reference row ['auto', 0.747]","SELECT p.product, 
+       SUM(COALESCE(c.cost_usd, 0)) / SUM(p.annual_premium) AS loss_ratio
+FROM policies p
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.product",665,1,1.2,unreviewed,False
+v3 context + rules,How many policies have never had a claim?,True,match,SELECT COUNT(*) FROM policies p LEFT JOIN claims c ON p.policy_id = c.policy_id WHERE c.claim_id IS NULL,637,1,0.8,,True
+v3 context + rules,What is the claim frequency for auto policies?,False,no predicted row matches reference row [0.888],"SELECT COUNT(c.claim_id) * 1.0 / COUNT(p.policy_id) AS claim_frequency 
+FROM policies p LEFT JOIN claims c ON p.policy_id = c.policy_id 
+WHERE p.product = 'auto'",656,1,0.9,unreviewed,False
+v3 context + rules,How many claims were reported each month in 2026?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, COUNT(*) AS claim_count 
+FROM claims 
+GROUP BY month 
+ORDER BY month",646,1,0.8,,True
+v3 context + rules,Which adjuster handles the most open claims?,True,match,"SELECT a.name 
+FROM adjusters a 
+JOIN claims c ON a.adjuster_id = c.adjuster_id 
+WHERE c.status IN ('open', 'reopened') 
+GROUP BY a.name 
+ORDER BY COUNT(c.claim_id) DESC 
+LIMIT 1",665,1,1.1,,True
+v3 context + rules,What is the average cost of litigated versus non-litigated injury claims?,False,row count 1 vs 2,"SELECT 
+    CASE WHEN c.attorney = 1 THEN 'Litigated' ELSE 'Non-Litigated' END AS claim_type,
+    AVG(c.cost_usd) AS average_cost
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE c.claim_type = 'injury'
+GROUP BY claim_type",689,1,1.6,unreviewed,False
+v3 context + rules,List the 3 most expensive fire claims with their state.,False,"no predicted row matches reference row [384, 'NY', 25126.1]","SELECT p.state, c.cost_usd 
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE c.claim_type = 'fire' 
+ORDER BY c.cost_usd DESC 
+LIMIT 3",661,1,1.0,scorer too strict,True
+v3 context + rules,How many claims does each region's adjusters handle?,True,match,"SELECT a.region, COUNT(c.claim_id) AS claims_handled 
+FROM adjusters a 
+LEFT JOIN claims c ON a.adjuster_id = c.adjuster_id 
+GROUP BY a.region",653,1,1.3,,True
+v3 context + rules,What is the total premium of home policies in Florida?,True,match,"SELECT SUM(p.annual_premium) 
+FROM policies p 
+WHERE p.product = 'home' AND p.state = 'FL'",641,1,0.9,,True
+v3 context + rules,Which claim type has the highest litigation rate?,True,match,"SELECT c.claim_type, ROUND(100.0 * AVG(c.attorney), 1) AS litigation_rate
+FROM claims c
+GROUP BY c.claim_type
+ORDER BY litigation_rate DESC
+LIMIT 1",655,1,1.3,,True
+v3 context + rules,How many policies have more than one claim?,True,match,"SELECT COUNT(*) FROM (
+    SELECT p.policy_id 
+    FROM policies p 
+    LEFT JOIN claims c ON p.policy_id = c.policy_id 
+    GROUP BY p.policy_id 
+    HAVING COUNT(c.claim_id) > 1
+) AS subquery",666,1,1.4,,True
+v3 context + rules,What is the average claim cost handled by adjusters with more than 10 years of experience?,True,match,"SELECT AVG(c.cost_usd) 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE a.years_experience > 10",659,1,1.2,,True
+v4 agent + rules,How many claims are there in total?,True,match,SELECT COUNT(*) FROM claims,1471,2,1.6,,True
+v4 agent + rules,How many policies are there in each state?,True,match,"SELECT state, COUNT(*) as policy_count FROM policies GROUP BY state",1517,2,1.8,,True
+v4 agent + rules,What is the average claim cost for injury claims?,True,match,SELECT AVG(cost_usd) AS average_claim_cost FROM claims WHERE claim_type = 'injury',1520,2,1.8,,True
+v4 agent + rules,How many open claims are there?,True,match,"SELECT COUNT(*) FROM claims WHERE status IN ('open', 'reopened')",1499,2,1.8,,True
+v4 agent + rules,"What share of injury claims are litigated, as a percentage?",True,match,"SELECT ROUND(100.0 * SUM(CASE WHEN c.attorney = 1 THEN 1 ELSE 0 END) / COUNT(*), 1) AS litigation_rate
+FROM claims c
+WHERE c.claim_type = 'injury'",1616,2,3.0,,True
+v4 agent + rules,What is the total claim cost by product?,True,match,"SELECT p.product, SUM(c.cost_usd) AS total_claim_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY p.product",1569,2,2.4,,True
+v4 agent + rules,What is the claim severity for each claim type?,True,match,"SELECT c.claim_type, AVG(c.cost_usd) AS severity FROM claims c GROUP BY c.claim_type",1588,2,2.0,,True
+v4 agent + rules,Which state has the highest total claim cost?,True,match,"SELECT p.state, SUM(c.cost_usd) AS total_claim_cost FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY p.state ORDER BY total_claim_cost DESC LIMIT 1",1588,2,2.6,,True
+v4 agent + rules,What is the loss ratio for each product?,False,"no predicted row matches reference row ['auto', 0.747]","SELECT p.product, SUM(c.cost_usd) / SUM(p.annual_premium) AS loss_ratio FROM policies p LEFT JOIN claims c ON p.policy_id = c.policy_id GROUP BY p.product",1798,2,3.6,unreviewed,False
+v4 agent + rules,How many policies have never had a claim?,True,match,SELECT COUNT(*) FROM policies p LEFT JOIN claims c ON p.policy_id = c.policy_id WHERE c.policy_id IS NULL,1530,2,2.2,,True
+v4 agent + rules,What is the claim frequency for auto policies?,True,match,"SELECT COUNT(c.claim_id) * 1.0 / COUNT(DISTINCT p.policy_id) AS claim_frequency 
+FROM policies p 
+LEFT JOIN claims c ON p.policy_id = c.policy_id 
+WHERE p.product = 'auto'",1618,2,3.2,,True
+v4 agent + rules,How many claims were reported each month in 2026?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, COUNT(*) AS claim_count FROM claims GROUP BY month ORDER BY month",1615,2,3.0,,True
+v4 agent + rules,Which adjuster handles the most open claims?,True,match,"SELECT a.name, COUNT(c.claim_id) AS open_claim_count 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE c.status IN ('open', 'reopened') 
+GROUP BY a.name 
+ORDER BY open_claim_count DESC 
+LIMIT 1",1665,2,3.3,,True
+v4 agent + rules,What is the average cost of litigated versus non-litigated injury claims?,False,row count 1 vs 2,"SELECT AVG(c.cost_usd) AS avg_cost, CASE WHEN c.attorney = 1 THEN 'Litigated' ELSE 'Non-Litigated' END AS claim_type FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE c.claim_type = 'injury' GROUP BY claim_type",1843,2,4.3,unreviewed,False
+v4 agent + rules,List the 3 most expensive fire claims with their state.,False,"no predicted row matches reference row [384, 'NY', 25126.1]","SELECT p.state, c.cost_usd FROM claims c JOIN policies p ON c.policy_id = p.policy_id WHERE c.claim_type = 'fire' ORDER BY c.cost_usd DESC LIMIT 3",1606,2,2.6,scorer too strict,True
+v4 agent + rules,How many claims does each region's adjusters handle?,True,match,"SELECT a.region, COUNT(c.claim_id) AS claims_handled FROM adjusters a LEFT JOIN claims c ON a.adjuster_id = c.adjuster_id GROUP BY a.region",1584,2,2.4,,True
+v4 agent + rules,What is the total premium of home policies in Florida?,True,match,SELECT SUM(annual_premium) FROM policies WHERE product = 'home' AND state = 'FL',1531,2,2.0,,True
+v4 agent + rules,Which claim type has the highest litigation rate?,True,match,"SELECT c.claim_type, ROUND(100.0 * AVG(c.attorney), 1) AS litigation_rate FROM claims c JOIN policies p ON c.policy_id = p.policy_id GROUP BY c.claim_type ORDER BY litigation_rate DESC LIMIT 1",1614,2,2.7,,True
+v4 agent + rules,How many policies have more than one claim?,True,match,SELECT COUNT(*) FROM (SELECT policy_id FROM claims GROUP BY policy_id HAVING COUNT(*) > 1),1524,2,2.2,,True
+v4 agent + rules,What is the average claim cost handled by adjusters with more than 10 years of experience?,True,match,SELECT AVG(c.cost_usd) FROM claims c JOIN adjusters a ON c.adjuster_id = a.adjuster_id WHERE a.years_experience > 10,1586,2,2.2,,True
+v5 context + semantic view,How many claims are there in total?,True,match,SELECT COUNT(*) FROM claims,698,1,0.8,,True
+v5 context + semantic view,How many policies are there in each state?,True,match,"SELECT state, COUNT(*) FROM policies GROUP BY state",704,1,0.6,,True
+v5 context + semantic view,What is the average claim cost for injury claims?,True,match,"SELECT AVG(c.cost_usd) 
+FROM claims c 
+WHERE c.claim_type = 'injury'",715,1,1.1,,True
+v5 context + semantic view,How many open claims are there?,True,match,"SELECT COUNT(*) FROM claims WHERE status IN ('open', 'reopened')",706,1,1.0,,True
+v5 context + semantic view,"What share of injury claims are litigated, as a percentage?",True,match,"SELECT ROUND(100.0 * SUM(c.attorney) / COUNT(*), 1) AS litigated_share
+FROM claims c
+WHERE c.claim_type = 'injury'",734,1,1.5,,True
+v5 context + semantic view,What is the total claim cost by product?,True,match,"SELECT p.product, SUM(ps.claim_cost) AS total_claim_cost
+FROM policy_summary ps
+JOIN policies p ON ps.policy_id = p.policy_id
+GROUP BY p.product",729,1,1.1,,True
+v5 context + semantic view,What is the claim severity for each claim type?,True,match,"SELECT c.claim_type, AVG(c.cost_usd) AS claim_severity 
+FROM claims c 
+GROUP BY c.claim_type",720,1,0.9,,True
+v5 context + semantic view,Which state has the highest total claim cost?,True,match,"SELECT p.state, SUM(ps.claim_cost) AS total_claim_cost
+FROM policy_summary ps
+JOIN policies p ON ps.policy_id = p.policy_id
+GROUP BY p.state
+ORDER BY total_claim_cost DESC
+LIMIT 1",740,1,1.1,,True
+v5 context + semantic view,What is the loss ratio for each product?,True,match,"SELECT p.product, SUM(ps.claim_cost) / SUM(ps.annual_premium) AS loss_ratio
+FROM policy_summary ps
+JOIN policies p ON ps.policy_id = p.policy_id
+GROUP BY p.product",736,1,1.2,,True
+v5 context + semantic view,How many policies have never had a claim?,True,match,SELECT COUNT(*) FROM policies p WHERE p.policy_id NOT IN (SELECT DISTINCT policy_id FROM claims),713,1,0.8,,True
+v5 context + semantic view,What is the claim frequency for auto policies?,True,match,"SELECT SUM(claim_count) * 1.0 / COUNT(*) AS claim_frequency 
+FROM policy_summary 
+WHERE product = 'auto'",721,1,1.0,,True
+v5 context + semantic view,How many claims were reported each month in 2026?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, COUNT(*) AS claim_count
+FROM claims
+GROUP BY month
+ORDER BY month",727,1,0.9,,True
+v5 context + semantic view,Which adjuster handles the most open claims?,True,match,"SELECT a.name 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE c.status IN ('open', 'reopened') 
+GROUP BY a.name 
+ORDER BY COUNT(c.claim_id) DESC 
+LIMIT 1",746,1,1.2,,True
+v5 context + semantic view,What is the average cost of litigated versus non-litigated injury claims?,False,row count 1 vs 2,"SELECT 
+    CASE WHEN c.attorney = 1 THEN 'Litigated' ELSE 'Non-Litigated' END AS claim_type,
+    AVG(c.cost_usd) AS average_cost
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE c.claim_type = 'injury'
+GROUP BY claim_type",770,1,1.5,unreviewed,False
+v5 context + semantic view,List the 3 most expensive fire claims with their state.,False,"no predicted row matches reference row [384, 'NY', 25126.1]","SELECT p.state, c.cost_usd 
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE c.claim_type = 'fire' 
+ORDER BY c.cost_usd DESC 
+LIMIT 3",742,1,1.5,unreviewed,False
+v5 context + semantic view,How many claims does each region's adjusters handle?,True,match,"SELECT a.region, COUNT(c.claim_id) AS claim_count 
+FROM adjusters a 
+LEFT JOIN claims c ON a.adjuster_id = c.adjuster_id 
+GROUP BY a.region",733,1,0.9,,True
+v5 context + semantic view,What is the total premium of home policies in Florida?,True,match,SELECT SUM(annual_premium) FROM policies WHERE product = 'home' AND state = 'FL',716,1,0.8,,True
+v5 context + semantic view,Which claim type has the highest litigation rate?,True,match,"SELECT c.claim_type, ROUND(100.0 * AVG(c.attorney), 1) AS litigation_rate
+FROM claims c
+GROUP BY c.claim_type
+ORDER BY litigation_rate DESC
+LIMIT 1",736,1,1.0,,True
+v5 context + semantic view,How many policies have more than one claim?,True,match,"SELECT COUNT(*) FROM (
+    SELECT p.policy_id 
+    FROM policy_summary p 
+    WHERE p.claim_count > 1
+)",720,1,0.8,,True
+v5 context + semantic view,What is the average claim cost handled by adjusters with more than 10 years of experience?,True,match,"SELECT AVG(c.cost_usd) 
+FROM claims c 
+JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+WHERE a.years_experience > 10",740,1,1.0,,True

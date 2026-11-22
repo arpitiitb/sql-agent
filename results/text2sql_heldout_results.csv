@@ -1,0 +1,84 @@
+version,question,correct,why,sql,tokens,steps,seconds
+v1 context,What is the loss ratio by state?,False,"no predicted row matches reference row ['CA', 0.772]","SELECT p.state, 
+       SUM(c.cost_usd) / SUM(p.annual_premium) AS loss_ratio
+FROM policies p
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.state",565,1,1.4
+v1 context,What is the claim frequency for home policies?,False,no predicted row matches reference row [0.983],"SELECT COUNT(c.claim_id) * 1.0 / COUNT(DISTINCT p.policy_id) AS claim_frequency
+FROM claims c 
+JOIN policies p ON c.policy_id = p.policy_id 
+WHERE p.product = 'home'",567,1,2.4
+v1 context,How many adjusters handle more than 40 claims?,True,match,"SELECT COUNT(*) 
+FROM (
+    SELECT adjuster_id 
+    FROM claims 
+    GROUP BY adjuster_id 
+    HAVING COUNT(*) > 40
+) AS subquery",559,1,0.9
+v1 context,What is the average annual premium of policies that have at least one litigated claim?,False,row count 56 vs 1,"SELECT AVG(p.annual_premium) 
+FROM policies p 
+JOIN claims c ON p.policy_id = c.policy_id 
+WHERE c.attorney = 1 
+GROUP BY p.policy_id",567,1,1.0
+v1 context,Which month in 2026 had the highest total claim cost?,True,match,"SELECT strftime('%Y-%m', c.report_date) AS month, SUM(c.cost_usd) AS total_claim_cost
+FROM claims c
+GROUP BY month
+ORDER BY total_claim_cost DESC
+LIMIT 1",569,1,1.2
+v3 context + rules,What is the loss ratio by state?,False,"no predicted row matches reference row ['CA', 0.772]","SELECT p.state, 
+       SUM(COALESCE(c.cost_usd, 0)) / SUM(p.annual_premium) AS loss_ratio
+FROM policies p
+LEFT JOIN claims c ON p.policy_id = c.policy_id
+GROUP BY p.state",664,1,1.2
+v3 context + rules,What is the claim frequency for home policies?,False,no predicted row matches reference row [0.983],"SELECT COUNT(c.claim_id) * 1.0 / COUNT(p.policy_id) AS claim_frequency
+FROM policies p LEFT JOIN claims c ON p.policy_id = c.policy_id
+WHERE p.product = 'home'",656,1,1.0
+v3 context + rules,How many adjusters handle more than 40 claims?,True,match,"SELECT COUNT(*) FROM (
+    SELECT a.adjuster_id
+    FROM claims c 
+    JOIN adjusters a ON c.adjuster_id = a.adjuster_id 
+    GROUP BY a.adjuster_id 
+    HAVING COUNT(c.claim_id) > 40
+) AS subquery",672,1,1.2
+v3 context + rules,What is the average annual premium of policies that have at least one litigated claim?,True,match,"SELECT AVG(p.annual_premium) 
+FROM policies p 
+WHERE p.policy_id IN (SELECT DISTINCT c.policy_id FROM claims c WHERE c.attorney = 1)",655,1,1.0
+v3 context + rules,Which month in 2026 had the highest total claim cost?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, SUM(cost_usd) AS total_claim_cost
+FROM claims
+GROUP BY month
+ORDER BY total_claim_cost DESC
+LIMIT 1",658,1,1.0
+v4 agent + rules,What is the loss ratio by state?,False,"no predicted row matches reference row ['CA', 0.772]","SELECT p.state, ROUND(SUM(c.cost_usd) / SUM(p.annual_premium), 4) AS loss_ratio FROM policies p LEFT JOIN claims c ON p.policy_id = c.policy_id GROUP BY p.state",1962,2,4.6
+v4 agent + rules,What is the claim frequency for home policies?,False,no predicted row matches reference row [0.983],"SELECT COUNT(c.claim_id) * 1.0 / COUNT(p.policy_id) AS claim_frequency 
+FROM policies p 
+LEFT JOIN claims c ON p.policy_id = c.policy_id 
+WHERE p.product = 'home'",1609,2,2.9
+v4 agent + rules,How many adjusters handle more than 40 claims?,True,match,SELECT COUNT(*) FROM (SELECT adjuster_id FROM claims GROUP BY adjuster_id HAVING COUNT(*) > 40) AS subquery,1543,2,2.1
+v4 agent + rules,What is the average annual premium of policies that have at least one litigated claim?,True,match,"SELECT AVG(annual_premium) FROM (SELECT DISTINCT p.policy_id, p.annual_premium FROM policies p JOIN claims c ON p.policy_id = c.policy_id WHERE c.attorney = 1) AS litigated_policies",2715,3,4.1
+v4 agent + rules,Which month in 2026 had the highest total claim cost?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, SUM(cost_usd) AS total_claim_cost
+FROM claims
+GROUP BY month
+ORDER BY total_claim_cost DESC
+LIMIT 1",1602,2,3.1
+v5 context + semantic view,What is the loss ratio by state?,True,match,"SELECT state, SUM(claim_cost) * 1.0 / SUM(annual_premium) AS loss_ratio 
+FROM policy_summary 
+GROUP BY state",724,1,1.0
+v5 context + semantic view,What is the claim frequency for home policies?,True,match,"SELECT SUM(claim_count) * 1.0 / COUNT(*) AS claim_frequency 
+FROM policy_summary 
+WHERE product = 'home'",721,1,0.9
+v5 context + semantic view,How many adjusters handle more than 40 claims?,True,match,"SELECT COUNT(*) FROM (
+    SELECT adjuster_id FROM claims 
+    GROUP BY adjuster_id 
+    HAVING COUNT(*) > 40
+)",725,1,0.9
+v5 context + semantic view,What is the average annual premium of policies that have at least one litigated claim?,False,row count 56 vs 1,"SELECT AVG(p.annual_premium) 
+FROM policies p 
+JOIN claims c ON p.policy_id = c.policy_id 
+WHERE c.attorney = 1 
+GROUP BY p.policy_id 
+HAVING COUNT(c.claim_id) > 0",751,1,1.2
+v5 context + semantic view,Which month in 2026 had the highest total claim cost?,True,match,"SELECT strftime('%Y-%m', report_date) AS month, SUM(cost_usd) AS total_claim_cost
+FROM claims
+GROUP BY month
+ORDER BY total_claim_cost DESC
+LIMIT 1",739,1,1.0
